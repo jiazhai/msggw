@@ -1,0 +1,27 @@
+Streamlio Messaging Gateway
+Copyright 2019 Streamlio, Inc
+
+----------------------------------------------------------------------------------
+This software contains code from Apache Kafka:
+
+Apache Kafka
+Copyright 2019 The Apache Software Foundation.
+
+msggw/src/main/java/io/streaml/msggw/kafka/KafkaProtocolCodec.java
+- Copyed from https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/common/requests/RequestContext.java.
+
+----------------------------------------------------------------------------------
+This software contains code from Apache Pulsar:
+
+Apache Pulsar
+Copyright 2019 The Apache Software Foundation.
+
+msggw/src/main/java/io/streaml/msggw/kafka/MessageIdUtils.java
+- Copied from https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/util/MessageIdUtils.java.
+
+----------------------------------------------------------------------------------
+This software contains code from LMax Disruptor:
+
+msggw/src/main/java/io/streaml/msggw/AlertableBatchEventProcessor.java
+- Copied from https://github.com/LMAX-Exchange/disruptor/blob/3.4.2/src/main/java/com/lmax/disruptor/BatchEventProcessor.java
+
