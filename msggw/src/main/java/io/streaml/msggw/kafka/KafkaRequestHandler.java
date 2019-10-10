@@ -249,14 +249,7 @@ public class KafkaRequestHandler extends ChannelInboundHandlerAdapter {
                                 NamespaceName.get(namespace), topic);
 
                         Node owner = nodes.get(chashGroupState.lookupOwner(topicName.getLookupName()));
-                        return admin.topics().getStatsAsync(topicName.toString()).thenApply(new Function<TopicStats,
-                                TopicStats>() {
-
-                            @Override
-                            public TopicStats apply(TopicStats topicStats) {
-                                return topicStats;
-                            }
-                        })
+                        return admin.topics().getStatsAsync(topicName.toString())
                                 .thenApply((stats) -> buildTopicMetadata(topicName.getLocalName(), owner))
                                 .exceptionally((t) -> {
                                     List<MetadataResponse.PartitionMetadata> partitions = Collections.emptyList();
