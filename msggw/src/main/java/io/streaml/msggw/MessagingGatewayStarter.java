@@ -192,7 +192,8 @@ public class MessagingGatewayStarter {
                         });
                 services.add(chashGroup);
                 MLTableConsumerGroupStorageService storage = new MLTableConsumerGroupStorageService(
-                        config.getZookeeperServers());
+                        config.getZookeeperServers(), config.getManagedLedgerDefaultEnsembleSize(),
+                        config.getManagedLedgerDefaultWriteQuorum(), config.getManagedLedgerDefaultAckQuorum());
                 services.add(storage);
                 ConsumerGroups groups = new ConsumerGroupsImpl(chashGroup,
                                                                Ticker.systemTicker(),
@@ -207,8 +208,8 @@ public class MessagingGatewayStarter {
                                                                               pulsarAdmin, pulsarClient,
                                                                               scheduler, kafkaProducerThread,
                                                                               fetcher, groups,
-                                                                              authenticationService.getAuthenticationProvider("token"),
-                                                                              Optional.ofNullable(authorizationService)));
+                                                                              authenticationService,
+                                                                              Optional.ofNullable(authorizationService), config));
                 services.add(kafkaProducerThread);
                 services.add(kafka);
             }

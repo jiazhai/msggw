@@ -28,5 +28,8 @@ public interface MLTableBuilder {
     MLTableBuilder withManagedLedgerFactory(ManagedLedgerFactory factory);
     MLTableBuilder withSnapshotAfterNUpdates(int numUpdates);
     MLTableBuilder withBookKeeperClient(BookKeeper bkc);
+    MLTableBuilder withEnsembleSize(int size);
+    MLTableBuilder withWriteQuorumSize(int size);
+    MLTableBuilder withAckQuorumSize(int size);
     CompletableFuture<MLTable> build();
 }

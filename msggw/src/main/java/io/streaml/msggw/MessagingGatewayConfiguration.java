@@ -49,6 +49,9 @@ public class MessagingGatewayConfiguration extends ProxyConfiguration implements
     @Category
     private static final String CATEGORY_HTTP = "Http";
 
+    @Category
+    private static final String CATEGORY_STORAGE_ML = "Storage (Managed Ledger)";
+
     @FieldContext(category = CATEGORY_MSGGW,
                   doc = "Address (hostname or IP) to advertize as, must be routable by connecting clients")
     private String advertizedAddress = null;
@@ -64,6 +67,10 @@ public class MessagingGatewayConfiguration extends ProxyConfiguration implements
     @FieldContext(category = CATEGORY_KAFKA,
                   doc = "The name of the kafka cluster presented by the kafka protocol handler")
     private String kafkaPulsarClusterName = "pulsar-kafka";
+
+    @FieldContext(category = CATEGORY_KAFKA,
+            doc = "The default Pulsar namespace kafka topics will be placed in")
+    private String kafkaPulsarDefaultNamespace = "public/default";
 
     @FieldContext(category = CATEGORY_MSGGW,
                   doc = "Enable the Http endpoint")
@@ -96,6 +103,25 @@ public class MessagingGatewayConfiguration extends ProxyConfiguration implements
     @FieldContext(category = CATEGORY_MSGGW,
                   doc = "Enable the pulsar binary protocol proxy")
     private boolean binaryProtocolProxyEnabled = true;
+
+    @FieldContext(
+            minValue = 1,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Number of bookies to use when creating a ledger"
+    )
+    private int managedLedgerDefaultEnsembleSize = 1;
+    @FieldContext(
+            minValue = 1,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Number of copies to store for each message"
+    )
+    private int managedLedgerDefaultWriteQuorum = 1;
+    @FieldContext(
+            minValue = 1,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Number of guaranteed copies (acks to wait before write is complete)"
+    )
+    private int managedLedgerDefaultAckQuorum = 1;
 
     static MessagingGatewayConfiguration loadFromFile(String configFile) throws IOException {
         Properties properties = new Properties();
@@ -150,6 +176,36 @@ public class MessagingGatewayConfiguration extends ProxyConfiguration implements
                 });
             updateFields(properties, obj, clazz.getSuperclass());
         }
+    }
+
+    public static MessagingGatewayConfiguration fromServiceConfiguration(ServiceConfiguration serviceConfiguration) {
+        final MessagingGatewayConfiguration convertedConf = new MessagingGatewayConfiguration();
+
+        Class<?> clazz = ServiceConfiguration.class;
+        while (PulsarConfiguration.class.isAssignableFrom(clazz)) {
+            Field[] confFields = clazz.getDeclaredFields();
+            Arrays.stream(confFields).forEach(confField -> {
+                try {
+                    Field convertedConfField;
+                    try {
+                        convertedConfField = MessagingGatewayConfiguration.class.getDeclaredField(confField.getName());
+                    } catch (NoSuchFieldException e) {
+                        convertedConfField = MessagingGatewayConfiguration.class.getSuperclass().getDeclaredField(confField.getName());
+                    }
+                    confField.setAccessible(true);
+                    if (!Modifier.isStatic(convertedConfField.getModifiers())) {
+                        convertedConfField.setAccessible(true);
+                        convertedConfField.set(convertedConf, confField.get(serviceConfiguration));
+                    }
+                } catch (NoSuchFieldException e) {
+                    // ignore
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException("Exception caused while converting configuration", e);
+                }
+            });
+            clazz = clazz.getSuperclass();
+        }
+        return convertedConf;
     }
 
     public ServiceConfiguration toServiceConfiguration()

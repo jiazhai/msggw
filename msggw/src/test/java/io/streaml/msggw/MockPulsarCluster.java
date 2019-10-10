@@ -26,6 +26,7 @@ import com.google.common.util.concurrent.AbstractService;
 import io.jsonwebtoken.SignatureAlgorithm;
 
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -173,6 +174,14 @@ public class MockPulsarCluster extends AbstractService {
         return service.getAuthzService();
     }
 
+    public AuthenticationService getAuthService() {
+        return service.getAuthService();
+    }
+
+    public ServiceConfiguration getServiceConfiguration() {
+        return service.getServiceConfiguration();
+    }
+
     public static String userToken(String username) {
         try {
             return AuthTokenUtils.createToken(
@@ -250,6 +259,14 @@ public class MockPulsarCluster extends AbstractService {
 
         AuthorizationService getAuthzService() {
             return pulsar.getBrokerService().getAuthorizationService();
+        }
+
+        AuthenticationService getAuthService() {
+            return pulsar.getBrokerService().getAuthenticationService();
+        }
+
+        ServiceConfiguration getServiceConfiguration() {
+            return conf;
         }
 
         PulsarAdmin getPulsarAdmin() {

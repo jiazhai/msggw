@@ -16,34 +16,29 @@ package io.streaml.msggw.kafka;
  * under the License.
  */
 
-import static org.mockito.Mockito.spy;
-
 import com.google.common.base.Ticker;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import io.netty.util.Timer;
 import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
 import io.streaml.conhash.CHashGroup;
+import io.streaml.msggw.MessagingGatewayConfiguration;
 import io.streaml.msggw.MockPulsarCluster;
-
-import java.net.ServerSocket;
-import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
-
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.pulsar.client.api.PulsarClient;
-
+import org.junit.After;
+import org.junit.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.junit.After;
-import org.junit.Before;
+import java.net.ServerSocket;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
+import static org.mockito.Mockito.spy;
 
 public class HandlerTestBase {
 
@@ -101,19 +96,20 @@ public class HandlerTestBase {
 
         kafka = new KafkaService(kafkaPort, scheduler, groups,
                 new KafkaRequestHandler("test",
-                                        new NodeIds() {
-                                            @Override
-                                            public CompletableFuture<Integer> idForNode(String node) {
-                                                return CompletableFuture.completedFuture(1);
-                                            }
-                                        },
-                                        chashGroup,
-                                        pulsar.getPulsarAdmin(),
-                                        pulsarClient,
-                                        scheduler, producerThread,
-                                        fetcher, groups,
-                                        pulsar.getTokenAuthnProvider(),
-                                        Optional.ofNullable(pulsar.getAuthzService())));
+                        new NodeIds() {
+                            @Override
+                            public CompletableFuture<Integer> idForNode(String node) {
+                                return CompletableFuture.completedFuture(1);
+                            }
+                        },
+                        chashGroup,
+                        pulsar.getPulsarAdmin(),
+                        pulsarClient,
+                        scheduler, producerThread,
+                        fetcher, groups,
+                        pulsar.getAuthService(),
+                        Optional.ofNullable(pulsar.getAuthzService()),
+                        MessagingGatewayConfiguration.fromServiceConfiguration(pulsar.getServiceConfiguration())));
         producerThread.startAsync().awaitRunning();
         kafka.startAsync().awaitRunning();
     }

@@ -403,9 +403,9 @@ public class MLTableImpl implements MLTable {
                         Map<String, Long> newProperties = new HashMap<>(snapshotCursor.getProperties());
                         deletedSnapshotKeys.forEach(newProperties::remove);
                         return bookkeeper.newCreateLedgerOp()
-                            .withEnsembleSize(2)
-                            .withWriteQuorumSize(2)
-                            .withAckQuorumSize(2)
+                            .withEnsembleSize(config.ensembleSize)
+                            .withWriteQuorumSize(config.writeQuorumSize)
+                            .withAckQuorumSize(config.ackQuorumSize)
                             .withPassword(SNAPSHOT_PASSWD)
                             .withDigestType(DigestType.CRC32C)
                             .withCustomMetadata(metadata)
