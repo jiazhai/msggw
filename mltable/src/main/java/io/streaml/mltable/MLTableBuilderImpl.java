@@ -74,6 +74,24 @@ public class MLTableBuilderImpl implements MLTableBuilder {
     }
 
     @Override
+    public MLTableBuilder withEnsembleSize(int size) {
+        this.config.ensembleSize = size;
+        return this;
+    }
+
+    @Override
+    public MLTableBuilder withWriteQuorumSize(int size) {
+        this.config.writeQuorumSize = size;
+        return this;
+    }
+
+    @Override
+    public MLTableBuilder withAckQuorumSize(int size) {
+        this.config.ackQuorumSize = size;
+        return this;
+    }
+
+    @Override
     public CompletableFuture<MLTable> build() {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "table name must be a non-empty string");
         Preconditions.checkArgument(executor != null, "executor must be set");
@@ -81,7 +99,9 @@ public class MLTableBuilderImpl implements MLTableBuilder {
         Preconditions.checkArgument(bookkeeper != null, "bookkeeper client must be set");
 
         ManagedLedgerConfig mlConf = new ManagedLedgerConfig()
-            .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+                .setEnsembleSize(config.ensembleSize)
+                .setWriteQuorumSize(config.writeQuorumSize)
+                .setAckQuorumSize(config.ackQuorumSize);
         OrderedExecutor orderedExecutor;
         OrderedScheduler scheduledExecutor;
 

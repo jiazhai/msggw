@@ -18,9 +18,14 @@ package io.streaml.msggw.kafka;
  */
 
 import io.streaml.mltable.MLTable;
-
 import io.streaml.msggw.kafka.proto.Kafka.ConsumerGroupAssignment;
 import io.streaml.msggw.kafka.proto.Kafka.OffsetAndMetadataFormat;
+import org.apache.bookkeeper.client.api.BookKeeper;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.List;
@@ -31,14 +36,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.client.api.BookKeeper;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.common.TopicPartition;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class MLTableConsumerGroupStorage implements ConsumerGroupStorage {
     private final static Logger log = LoggerFactory.getLogger(MLTableConsumerGroupStorage.class);
     private final static String CONSUMER_GROUP_KEY = "ConsumerGroupAssignments";
@@ -46,28 +43,40 @@ public class MLTableConsumerGroupStorage implements ConsumerGroupStorage {
     private final ManagedLedgerFactory mlFactory;
     private final BookKeeper bookkeeper;
     private final ExecutorService executor;
+    private final int ensembleSize;
+    private final int writeQuorumSize;
+    private final int ackQuorumSize;
 
     public MLTableConsumerGroupStorage(ManagedLedgerFactory mlFactory,
                                        BookKeeper bookkeeper,
-                                       ExecutorService executor) {
+                                       ExecutorService executor,
+                                       int ensembleSize,
+                                       int writeQuorumSize,
+                                       int ackQuorumSize) {
         this.mlFactory = mlFactory;
         this.bookkeeper = bookkeeper;
         this.executor = executor;
+        this.ensembleSize = ensembleSize;
+        this.writeQuorumSize = writeQuorumSize;
+        this.ackQuorumSize = ackQuorumSize;
     }
 
     @Override
     public CompletableFuture<Handle> read(String group) {
         return MLTable.newBuilder()
-            .withTableName("__consumer_group." + group)
-            .withExecutor(executor)
-            .withManagedLedgerFactory(mlFactory)
-            .withBookKeeperClient(bookkeeper)
-            .build()
-            .thenComposeAsync(mltable ->
-                    mltable.get(CONSUMER_GROUP_KEY)
-                    .thenApplyAsync(value -> new MLTableHandle(mltable, executor, value),
-                                    executor),
-                    executor);
+                .withTableName("__consumer_group." + group)
+                .withExecutor(executor)
+                .withManagedLedgerFactory(mlFactory)
+                .withBookKeeperClient(bookkeeper)
+                .withEnsembleSize(ensembleSize)
+                .withWriteQuorumSize(writeQuorumSize)
+                .withAckQuorumSize(ackQuorumSize)
+                .build()
+                .thenComposeAsync(mltable ->
+                                mltable.get(CONSUMER_GROUP_KEY)
+                                        .thenApplyAsync(value -> new MLTableHandle(mltable, executor, value),
+                                                executor),
+                        executor);
     }
 
     private static class MLTableHandle implements Handle {

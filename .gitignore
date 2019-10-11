@@ -1,0 +1,7 @@
+.idea/
+.ijwb/
+bazel-bin
+bazel-genfiles
+bazel-msggw
+bazel-out
+bazel-testlogs

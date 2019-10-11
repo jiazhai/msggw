@@ -31,13 +31,21 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 
 public class MLTableConsumerGroupStorageService extends AbstractService implements ConsumerGroupStorage {
     private final String zkConnectString;
+    private final int ensembleSize;
+    private final int writeQuorumSize;
+    private final int ackQuorumSize;
     private ManagedLedgerFactory mlFactory;
     private BookKeeper bookkeeper;
     private ExecutorService executor;
     private MLTableConsumerGroupStorage storage;
 
-    public MLTableConsumerGroupStorageService(String zkConnectString) {
+    public MLTableConsumerGroupStorageService(
+            String zkConnectString, int ensembleSize,
+            int writeQuorumSize, int ackQuorumSize) {
         this.zkConnectString = zkConnectString;
+        this.ensembleSize = ensembleSize;
+        this.writeQuorumSize = writeQuorumSize;
+        this.ackQuorumSize = ackQuorumSize;
     }
 
     @Override
@@ -52,7 +60,8 @@ public class MLTableConsumerGroupStorageService extends AbstractService implemen
                                                               .setUncaughtExceptionHandler((thread, exception) -> {
                                                               })
                                                               .build());
-            storage = new MLTableConsumerGroupStorage(mlFactory, bookkeeper, executor);
+            storage = new MLTableConsumerGroupStorage(mlFactory, bookkeeper,
+                    executor, ensembleSize, writeQuorumSize, ackQuorumSize);
             notifyStarted();
         } catch (Exception e) {
             notifyFailed(e);

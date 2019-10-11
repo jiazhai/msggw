@@ -55,7 +55,7 @@ load("@rules_jvm_external//:specs.bzl", "maven")
 # BK and PULSAR versions only for java dependencies used in msggw
 # Ideally we should bazelize the BK and Pulsar build, but that's a huge undertaking
 BOOKKEEPER_VERSION = "4.9.1"
-PULSAR_VERSION = "2.4.0"
+PULSAR_VERSION = "2.4.1"
 
 CAFFEINE_VERSION = "2.6.2"
 COMMONS_IO_VERSION = "2.4"

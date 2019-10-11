@@ -18,7 +18,6 @@ package io.streaml.msggw.kafka;
  */
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.apache.kafka.common.protocol.CommonFields.THROTTLE_TIME_MS;
 
 import com.google.common.base.Strings;
@@ -29,7 +28,6 @@ import com.google.protobuf.ByteString;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,12 +44,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.naming.AuthenticationException;
 
-import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler.Sharable;
@@ -61,6 +58,7 @@ import io.netty.util.ReferenceCountUtil;
 
 import io.streaml.conhash.CHashGroup;
 
+import io.streaml.msggw.MessagingGatewayConfiguration;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.kafka.common.Node;
@@ -103,14 +101,12 @@ import org.apache.kafka.common.requests.SyncGroupResponse;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
 
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 
@@ -119,6 +115,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,8 +137,9 @@ public class KafkaRequestHandler extends ChannelInboundHandlerAdapter {
 
     private final ConsumerGroups consumerGroups;
     private final ConcurrentHashMap<Channel, Queue<Completion>> completions = new ConcurrentHashMap<>();
-    private final AuthenticationProvider authnProvider;
+    private final AuthenticationService authenticationService;
     private final Optional<AuthorizationService> authzService;
+    private final MessagingGatewayConfiguration config;
 
     public KafkaRequestHandler(String clusterName,
                                NodeIds nodeIds,
@@ -149,8 +147,9 @@ public class KafkaRequestHandler extends ChannelInboundHandlerAdapter {
                                PulsarAdmin admin, PulsarClient client,
                                ExecutorService executor, KafkaProducerThread producerThread,
                                Fetcher fetcher, ConsumerGroups consumerGroups,
-                               AuthenticationProvider authnProvider,
-                               Optional<AuthorizationService> authzService) {
+                               AuthenticationService authenticationService,
+                               Optional<AuthorizationService> authzService,
+                               MessagingGatewayConfiguration configuration) {
         this.clusterName = clusterName;
         this.nodeIds = nodeIds;
         this.chashGroup = chashGroup;
@@ -160,8 +159,9 @@ public class KafkaRequestHandler extends ChannelInboundHandlerAdapter {
         this.producerThread = producerThread;
         this.fetcher = fetcher;
         this.consumerGroups = consumerGroups;
-        this.authnProvider = authnProvider;
+        this.authenticationService = authenticationService;
         this.authzService = authzService;
+        this.config = configuration;
     }
 
     private static Node addressToNode(int id, String address) throws NumberFormatException {
@@ -243,28 +243,36 @@ public class KafkaRequestHandler extends ChannelInboundHandlerAdapter {
             boolean autoCreate = request.allowAutoTopicCreation();
             List<CompletableFuture<MetadataResponse.TopicMetadata>> metadataFutures =
                 request.topics().stream().map((topic) -> {
+
+                    try {
                         TopicName topicName = TopicName.get(TopicDomain.persistent.value(),
-                                                            NamespaceName.get(namespace), topic);
+                                NamespaceName.get(namespace), topic);
+
                         Node owner = nodes.get(chashGroupState.lookupOwner(topicName.getLookupName()));
                         return admin.topics().getStatsAsync(topicName.toString())
-                            .thenApply((stats) -> buildTopicMetadata(topicName.getLocalName(), owner))
-                            .exceptionally((t) -> {
+                                .thenApply((stats) -> buildTopicMetadata(topicName.getLocalName(), owner))
+                                .exceptionally((t) -> {
                                     List<MetadataResponse.PartitionMetadata> partitions = Collections.emptyList();
                                     Errors error = pulsarToKafkaException(request, t);
                                     return new MetadataResponse.TopicMetadata(error, topicName.getLocalName(),
-                                                                              false, partitions);
+                                            false, partitions);
                                 })
-                            .thenCompose((metadata) -> {
+                                .thenCompose((metadata) -> {
                                     if (metadata.error() == Errors.UNKNOWN_TOPIC_OR_PARTITION
-                                        && request.allowAutoTopicCreation()) {
+                                            && request.allowAutoTopicCreation()) {
                                         return client.newProducer().topic(topicName.toString()).createAsync()
-                                            .thenCompose((producer) -> producer.closeAsync())
-                                            .thenApply((ignore) -> buildTopicMetadata(topicName.getLocalName(), owner));
+                                                .thenCompose((producer) -> producer.closeAsync())
+                                                .thenApply((ignore) -> buildTopicMetadata(topicName.getLocalName(), owner));
                                     } else {
                                         return CompletableFuture.completedFuture(metadata);
                                     }
                                 });
-                    }).collect(Collectors.toList());
+                    } catch (Exception e) {
+                        CompletableFuture<MetadataResponse.TopicMetadata> future = new CompletableFuture<>();
+                        future.completeExceptionally(e);
+                        return future;
+                    }
+                }).collect(Collectors.toList());
 
             CompletableFuture.allOf(metadataFutures.toArray(new CompletableFuture[0]))
                 .whenComplete((ignore, ex) -> {
@@ -611,14 +619,21 @@ public class KafkaRequestHandler extends ChannelInboundHandlerAdapter {
                             return token;
                         }
                     };
-                String user = authnProvider.authenticate(dataSource);
+
+                // Assume token auth for now
+                String user = null;
+                if (config.isAuthenticationEnabled()) {
+                    user = authenticationService.authenticate(dataSource, "token");
+                }
                 TopicName topicName = TopicName.get(TopicDomain.persistent.value(),
-                                                    NamespaceName.get(namespace), "dummy-topic");
+                        NamespaceName.get(namespace), "dummy-topic");
+
+                final String finalUser = user;
                 authzService.map((service) -> {
                         CompletableFuture<Boolean> canProduce = service.canProduceAsync(
-                                topicName, user, dataSource);
+                                topicName, finalUser, dataSource);
                         CompletableFuture<Boolean> canConsume = service.canConsumeAsync(
-                                topicName, user, dataSource, "kafka-sub");
+                                topicName, finalUser, dataSource, "kafka-sub");
                         return CompletableFuture.allOf(canProduce, canConsume)
                             .thenApply((ignore) -> {
                                     return canProduce.join() && canConsume.join();
@@ -635,14 +650,14 @@ public class KafkaRequestHandler extends ChannelInboundHandlerAdapter {
                                                           Errors.SASL_AUTHENTICATION_FAILED,
                                                           "Not authorized for namespace"));
                             } else {
-                                ctx.attr(AUTH_ATTR_KEY).set(new AuthenticatedUser(namespace, user));
+                                ctx.attr(AUTH_ATTR_KEY).set(new AuthenticatedUser(namespace, finalUser));
                                 response.complete(new SaslAuthenticateResponse(Errors.NONE, "", ByteBuffer.allocate(0)));
                             }
                         });
             } catch (AuthenticationException e) {
                 response.complete(new SaslAuthenticateResponse(
                                           Errors.SASL_AUTHENTICATION_FAILED,
-                                          "Invalid token"));
+                                          e.getMessage()));
             }
         }
         return response;
@@ -650,11 +665,22 @@ public class KafkaRequestHandler extends ChannelInboundHandlerAdapter {
 
     CompletableFuture<String> checkAuth(ChannelHandlerContext ctx) {
         CompletableFuture<String> promise = new CompletableFuture<>();
-        if (ctx.attr(AUTH_ATTR_KEY).get() != null) {
-            promise.complete(ctx.attr(AUTH_ATTR_KEY).get().namespace);
+        if (config.isAuthenticationEnabled()) {
+            if (ctx.attr(AUTH_ATTR_KEY).get() != null) {
+                promise.complete(ctx.attr(AUTH_ATTR_KEY).get().namespace);
+            } else {
+                promise.completeExceptionally(new AuthorizationException("Connection not authorized"));
+            }
         } else {
-            promise.completeExceptionally(new AuthorizationException("Connection not authorized"));
+            // Even if authentication is turned of users can still specify namespace
+            if (ctx.attr(AUTH_ATTR_KEY).get() != null) {
+                promise.complete(ctx.attr(AUTH_ATTR_KEY).get().namespace);
+            } else {
+                // Use the default namespace
+                promise.complete(config.getKafkaPulsarDefaultNamespace());
+            }
         }
+
         return promise;
     }
 

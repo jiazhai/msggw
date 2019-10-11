@@ -16,46 +16,46 @@ package io.streaml.msggw.kafka;
  * under the License.
  */
 
-import static org.mockito.Mockito.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-
 import com.google.common.base.Ticker;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import io.netty.util.Timer;
 import io.netty.util.HashedWheelTimer;
-import io.streaml.conhash.CHashGroupZKImpl;
+import io.netty.util.Timer;
 import io.streaml.conhash.CHashGroupService;
+import io.streaml.conhash.CHashGroupZKImpl;
+import io.streaml.msggw.MessagingGatewayConfiguration;
 import io.streaml.msggw.MockPulsarCluster;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerRecord;
-
-import org.apache.pulsar.client.api.PulsarClient;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.Ignore;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyObject;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 public class MultiHandlerTest {
     static final Logger log = LoggerFactory.getLogger(MultiHandlerTest.class);
@@ -102,15 +102,16 @@ public class MultiHandlerTest {
                                                 storage, groupsExecutor));
             NodeIds nodeIds = new NodeIdsImpl(scheduler, pulsar.getZooKeeperClient(), "/kafka-nodes");
             kafka = new KafkaService(kafkaPort, scheduler, groups,
-                                     new KafkaRequestHandler("test",
-                                                             nodeIds,
-                                                             chashGroup,
-                                                             pulsar.getPulsarAdmin(),
-                                                             pulsarClient,
-                                                             scheduler, spiedProducerThread,
-                                                             fetcher, groups,
-                                                             pulsar.getTokenAuthnProvider(),
-                                                             Optional.ofNullable(pulsar.getAuthzService())));
+                    new KafkaRequestHandler("test",
+                            nodeIds,
+                            chashGroup,
+                            pulsar.getPulsarAdmin(),
+                            pulsarClient,
+                            scheduler, spiedProducerThread,
+                            fetcher, groups,
+                            pulsar.getAuthService(),
+                            Optional.ofNullable(pulsar.getAuthzService()),
+                            MessagingGatewayConfiguration.fromServiceConfiguration(pulsar.getServiceConfiguration())));
             chashGroup.startAsync().awaitRunning();
             producerThread.startAsync().awaitRunning();
             kafka.startAsync().awaitRunning();
