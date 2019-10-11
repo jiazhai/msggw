@@ -71,7 +71,7 @@ public class MLTableConsumerGroupStorageTest {
     @Test(timeout=30000)
     public void testConsumerGroupAssignment() throws Exception {
         MLTableConsumerGroupStorage storage = new MLTableConsumerGroupStorage(
-                cluster.getFactory(), bkc, executor);
+                cluster.getFactory(), bkc, executor, 1, 1, 1);
 
         log.info("Read from storage, should be empty");
         ConsumerGroupStorage.Handle handle1 = storage.read("my-group").join();
@@ -107,7 +107,7 @@ public class MLTableConsumerGroupStorageTest {
     @Test(timeout=30000)
     public void testOffsets() {
         MLTableConsumerGroupStorage storage = new MLTableConsumerGroupStorage(
-                cluster.getFactory(), bkc, executor);
+                cluster.getFactory(), bkc, executor, 1, 1, 1);
 
         log.info("Read in handle");
         ConsumerGroupStorage.Handle handle1 = storage.read("").join();

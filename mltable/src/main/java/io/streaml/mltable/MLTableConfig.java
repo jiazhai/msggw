@@ -18,4 +18,7 @@ package io.streaml.mltable;
 
 class MLTableConfig {
     int numUpdatesForSnapshot = 50000;
+    int ensembleSize = 2;
+    int writeQuorumSize = 2;
+    int ackQuorumSize = 2;
 }
