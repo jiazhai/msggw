@@ -105,7 +105,7 @@ public class MessagingGatewayConfiguration extends ProxyConfiguration implements
     private boolean binaryProtocolProxyEnabled = true;
 
     @FieldContext(
-            minValue = 1
+            minValue = 1,
             category = CATEGORY_STORAGE_ML,
             doc = "Number of bookies to use when creating a ledger"
     )
