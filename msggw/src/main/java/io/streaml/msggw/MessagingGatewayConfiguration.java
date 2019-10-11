@@ -105,23 +105,23 @@ public class MessagingGatewayConfiguration extends ProxyConfiguration implements
     private boolean binaryProtocolProxyEnabled = true;
 
     @FieldContext(
-            minValue = 1,
+            minValue = 1
             category = CATEGORY_STORAGE_ML,
             doc = "Number of bookies to use when creating a ledger"
     )
-    private int managedLedgerDefaultEnsembleSize = 1;
+    private int managedLedgerDefaultEnsembleSize = 2;
     @FieldContext(
             minValue = 1,
             category = CATEGORY_STORAGE_ML,
             doc = "Number of copies to store for each message"
     )
-    private int managedLedgerDefaultWriteQuorum = 1;
+    private int managedLedgerDefaultWriteQuorum = 2;
     @FieldContext(
             minValue = 1,
             category = CATEGORY_STORAGE_ML,
             doc = "Number of guaranteed copies (acks to wait before write is complete)"
     )
-    private int managedLedgerDefaultAckQuorum = 1;
+    private int managedLedgerDefaultAckQuorum = 2;
 
     static MessagingGatewayConfiguration loadFromFile(String configFile) throws IOException {
         Properties properties = new Properties();
