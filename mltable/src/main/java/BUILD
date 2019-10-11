@@ -25,6 +25,7 @@ java_library(
     deps = [
         "//mltable/src/main/resources:JavaMLTableProtobufs",
         artifact("org.slf4j:slf4j-api"),
+        artifact("org.apache.bookkeeper:bookkeeper-common"),
         artifact("org.apache.bookkeeper:bookkeeper-server"),
         artifact("org.apache.pulsar:managed-ledger-original"),
         artifact("com.google.guava:guava"),

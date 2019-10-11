@@ -997,7 +997,7 @@ public class ConsumerGroupsImpl implements ConsumerGroups {
         Map<String, Long> deadlines = memberData.entrySet()
             .stream().collect(Collectors.toMap(
                                       e -> e.getKey(),
-                                      e -> currentTickMs + e.getValue().getRebalanceTimeout()));
+                                      e -> currentTickMs + e.getValue().getSessionTimeout()/2));
         if (assignments.isEmpty()) {
             return new SyncingState(groupName,
                                     assignment.getGeneration(),
