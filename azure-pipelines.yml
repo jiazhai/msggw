@@ -14,5 +14,5 @@ steps:
 - script: |
     wget https://github.com/bazelbuild/bazel/releases/download/1.0.0/bazel_1.0.0-linux-x86_64.deb
     sudo dpkg -i bazel_1.0.0-linux-x86_64.deb
-    bazel test --test_output=errors //..
+    bazel test --test_output=errors //...
   displayName: 'msggw unit tests'
